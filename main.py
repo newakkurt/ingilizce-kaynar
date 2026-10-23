@@ -1,13 +1,13 @@
 import os
 import random
 import requests
+from gtts import gTTS
 
-# Kısa, öz ve pratik kelime/cümle havuzu
 VOCABULARY_LIST = [
     {
         "word": "Resilient",
         "type": "adj",
-        "definition": "Quick to recover from diffuculties.",
+        "definition": "Quick to recover from difficulties.",
         "example": "Stay resilient in tough times.",
         "tr_meaning": "Dayanıklı, esnek",
         "tr_example": "Zor zamanlarda güçlü kal."
@@ -46,7 +46,7 @@ VOCABULARY_LIST = [
     }
 ]
 
-def send_telegram_message():
+def send_telegram_bot():
     token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
     
@@ -56,7 +56,7 @@ def send_telegram_message():
 
     item = random.choice(VOCABULARY_LIST)
 
-    # Şık, simgeli ama kısa & net format
+    # 1. Yazılı Mesaj
     message = (
         f"📌 <b>{item['word']}</b> <i>({item['type']})</i>\n"
         f"💡 <i>{item['definition']}</i>\n\n"
@@ -64,18 +64,36 @@ def send_telegram_message():
         f"🇹🇷 <b>TR:</b> {item['tr_meaning']} — {item['tr_example']}"
     )
 
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {
+    url_text = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload_text = {
         "chat_id": chat_id,
         "text": message,
         "parse_mode": "HTML"
     }
+    requests.post(url_text, json=payload_text)
+
+    # 2. Sesli Okuma (Kelime ve Örnek Cümle İngilizce Okunur)
+    speech_text = f"{item['word']}. {item['example']}"
+    audio_file = "voice.mp3"
     
-    response = requests.post(url, json=payload)
+    tts = gTTS(text=speech_text, lang='en', slow=False)
+    tts.save(audio_file)
+
+    # 3. Ses Dosyasını Telegram'a Gönderme (sendVoice)
+    url_voice = f"https://api.telegram.org/bot{token}/sendVoice"
+    with open(audio_file, 'rb') as voice:
+        files = {'voice': voice}
+        data = {'chat_id': chat_id}
+        response = requests.post(url_voice, data=data, files=files)
+
     if response.status_code == 200:
-        print("Mesaj başarıyla gönderildi!")
+        print("Yazı ve Ses mesajı başarıyla gönderildi!")
     else:
-        print(f"Hata oluştu. Kod: {response.status_code}, Yanıt: {response.text}")
+        print(f"Ses gönderilirken hata oluştu: {response.text}")
+
+    # Geçici ses dosyasını sil
+    if os.path.exists(audio_file):
+        os.remove(audio_file)
 
 if __name__ == "__main__":
-    send_telegram_message()
+    send_telegram_bot()
