@@ -28,9 +28,9 @@ def generate_english_content():
     """
 
     try:
-        # Google'ın önerdiği güncel gemini-2.5-flash modeli
+        # Doğrudan gemini-3.8-flash modelini çağırıyoruz
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-3.8-flash',
             contents=prompt,
         )
         # Markdown kod bloklarını temizle
