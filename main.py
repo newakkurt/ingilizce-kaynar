@@ -31,8 +31,9 @@ def generate_english_content(retries=3, delay=5):
     for attempt in range(1, retries + 1):
         try:
             print(f"Gemini API isteği atılıyor (Deneme {attempt}/{retries})...")
+            # Günlük 1.500 ücretsiz istek sunan stabil model: gemini-1.5-flash
             response = client.models.generate_content(
-                model='gemini-3.8-flash',
+                model='gemini-1.5-flash',
                 contents=prompt,
             )
             # Markdown kod bloklarını temizle
