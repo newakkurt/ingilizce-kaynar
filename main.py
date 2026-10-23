@@ -2,35 +2,47 @@ import os
 import random
 import requests
 
-# Günde 4 kez dönmesi için sade kelime havuzu
+# Kısa, öz ve pratik kelime/cümle havuzu
 VOCABULARY_LIST = [
     {
         "word": "Resilient",
-        "definition": "able to withstand or recover quickly from difficult conditions",
-        "example": "He is resilient enough to handle tough situations at work.",
-        "tr_meaning": "dayanıklı, esnek",
-        "tr_example": "İşteki zor durumların üstesinden gelebilecek kadar dayanıklıdır."
+        "type": "adj",
+        "definition": "Quick to recover from diffuculties.",
+        "example": "Stay resilient in tough times.",
+        "tr_meaning": "Dayanıklı, esnek",
+        "tr_example": "Zor zamanlarda güçlü kal."
     },
     {
         "word": "Enhance",
-        "definition": "intensify, increase, or further improve the quality or value of",
-        "example": "Automating tasks will greatly enhance overall productivity.",
-        "tr_meaning": "artırmak, geliştirmek",
-        "tr_example": "Görevleri otomatikleştirmek genel verimliliği büyük ölçüde artıracaktır."
+        "type": "v",
+        "definition": "To improve quality or value.",
+        "example": "Coffee enhances my focus.",
+        "tr_meaning": "Artırmak, geliştirmek",
+        "tr_example": "Kahve odaklanmamı artırır."
     },
     {
         "word": "Consistent",
-        "definition": "acting or done in the same way over time to be fair or accurate",
-        "example": "Consistent effort is the key to mastering a new skill.",
-        "tr_meaning": "tutarlı, kararlı",
-        "tr_example": "Kararlı çaba, yeni bir beceride uzmanlaşmanın anahtarıdır."
+        "type": "adj",
+        "definition": "Always acting in the same way.",
+        "example": "Be consistent with your study.",
+        "tr_meaning": "Kararlı, tutarlı",
+        "tr_example": "Derslerinde kararlı ol."
     },
     {
         "word": "Implement",
-        "definition": "put a decision, plan, or agreement into effect",
-        "example": "We plan to implement new automation tools next week.",
-        "tr_meaning": "uygulamaya koymak, kurmak",
-        "tr_example": "Gelecek hafta yeni otomasyon araçlarını uygulamaya koymayı planlıyoruz."
+        "type": "v",
+        "definition": "To put a plan into action.",
+        "example": "Let's implement this strategy.",
+        "tr_meaning": "Uygulamaya koymak",
+        "tr_example": "Bu stratejiyi uygulayalım."
+    },
+    {
+        "word": "Crucial",
+        "type": "adj",
+        "definition": "Extremely important or decisive.",
+        "example": "Timing is crucial for success.",
+        "tr_meaning": "Çok önemli, kritik",
+        "tr_example": "Başarı için zamanlama kritiktir."
     }
 ]
 
@@ -44,11 +56,12 @@ def send_telegram_message():
 
     item = random.choice(VOCABULARY_LIST)
 
-    # İstenen 3 satırlık sade format
+    # Şık, simgeli ama kısa & net format
     message = (
-        f"1. <b>{item['word']}</b>: {item['definition']}\n"
-        f"2. {item['example']}\n"
-        f"3. <b>TR:</b> {item['tr_meaning']} — {item['tr_example']}"
+        f"📌 <b>{item['word']}</b> <i>({item['type']})</i>\n"
+        f"💡 <i>{item['definition']}</i>\n\n"
+        f"🇬🇧 <b>EN:</b> {item['example']}\n"
+        f"🇹🇷 <b>TR:</b> {item['tr_meaning']} — {item['tr_example']}"
     )
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
