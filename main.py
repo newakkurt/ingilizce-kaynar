@@ -2,36 +2,39 @@ import os
 import random
 import requests
 
-# Günde 4 kez gönderilecek örnek İngilizce kelime/içerik havuzu
+# Günde 4 kez dönmesi için sade kelime havuzu
 VOCABULARY_LIST = [
     {
         "word": "Resilient",
-        "type": "adjective",
-        "meanings": ["dayanıklı", "esnek", "çabuk toparlanan"],
-        "example": "He is resilient enough to handle tough situations at work."
+        "definition": "able to withstand or recover quickly from difficult conditions",
+        "example": "He is resilient enough to handle tough situations at work.",
+        "tr_meaning": "dayanıklı, esnek",
+        "tr_example": "İşteki zor durumların üstesinden gelebilecek kadar dayanıklıdır."
     },
     {
         "word": "Enhance",
-        "type": "verb",
-        "meanings": ["geliştirmek", "artırmak", "zenginleştirmek"],
-        "example": "Automating tasks will greatly enhance overall productivity."
+        "definition": "intensify, increase, or further improve the quality or value of",
+        "example": "Automating tasks will greatly enhance overall productivity.",
+        "tr_meaning": "artırmak, geliştirmek",
+        "tr_example": "Görevleri otomatikleştirmek genel verimliliği büyük ölçüde artıracaktır."
     },
     {
         "word": "Consistent",
-        "type": "adjective",
-        "meanings": ["tutarlı", "kararlı", "sürekli"],
-        "example": "Consistent effort is the key to mastering a new skill."
+        "definition": "acting or done in the same way over time to be fair or accurate",
+        "example": "Consistent effort is the key to mastering a new skill.",
+        "tr_meaning": "tutarlı, kararlı",
+        "tr_example": "Kararlı çaba, yeni bir beceride uzmanlaşmanın anahtarıdır."
     },
     {
         "word": "Implement",
-        "type": "verb",
-        "meanings": ["uygulamaya koymak", "yürütmek", "kurmak"],
-        "example": "We plan to implement new automation tools next week."
+        "definition": "put a decision, plan, or agreement into effect",
+        "example": "We plan to implement new automation tools next week.",
+        "tr_meaning": "uygulamaya koymak, kurmak",
+        "tr_example": "Gelecek hafta yeni otomasyon araçlarını uygulamaya koymayı planlıyoruz."
     }
 ]
 
 def send_telegram_message():
-    # .github/workflows/run.yml içerisindeki Secret isimleriyle tam uyumlu
     token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
     
@@ -39,18 +42,13 @@ def send_telegram_message():
         print("Hata: Secret değerleri bulunamadı!")
         return
 
-    # Rastgele bir kelime seçelim
     item = random.choice(VOCABULARY_LIST)
-    meanings_str = ", ".join(item["meanings"])
 
-    # İngilizce formatlanmış mesaj şablonu
+    # İstenen 3 satırlık sade format
     message = (
-        f"🇬🇧 <b>Word of the Day</b>\n\n"
-        f"🔹 <b>{item['word']}</b> <i>({item['type']})</i>\n"
-        f"💡 <b>Meaning:</b> {meanings_str}\n\n"
-        f"📝 <b>Example Sentence:</b>\n"
-        f"<i>\"{item['example']}\"</i>\n\n"
-        f"⚙️ <i>Automated Daily English Notification</i>"
+        f"1. <b>{item['word']}</b>: {item['definition']}\n"
+        f"2. {item['example']}\n"
+        f"3. <b>TR:</b> {item['tr_meaning']} — {item['tr_example']}"
     )
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
@@ -62,7 +60,7 @@ def send_telegram_message():
     
     response = requests.post(url, json=payload)
     if response.status_code == 200:
-        print("İngilizce mesaj başarıyla gönderildi!")
+        print("Mesaj başarıyla gönderildi!")
     else:
         print(f"Hata oluştu. Kod: {response.status_code}, Yanıt: {response.text}")
 
