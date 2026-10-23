@@ -28,6 +28,7 @@ def generate_english_content():
     """
 
     try:
+        # Google'ın önerdiği güncel gemini-2.5-flash modeli
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
