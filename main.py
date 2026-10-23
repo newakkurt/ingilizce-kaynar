@@ -1,10 +1,11 @@
 import os
 import json
+import time
 import requests
 from gtts import gTTS
 from google import genai
 
-def generate_english_content():
+def generate_english_content(retries=3, delay=5):
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         print("Hata: GEMINI_API_KEY bulunamadı!")
@@ -27,18 +28,24 @@ def generate_english_content():
     }
     """
 
-    try:
-        # Doğrudan gemini-3.8-flash modelini çağırıyoruz
-        response = client.models.generate_content(
-            model='gemini-3.8-flash',
-            contents=prompt,
-        )
-        # Markdown kod bloklarını temizle
-        clean_text = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(clean_text)
-    except Exception as e:
-        print(f"Gemini API hatası: {e}")
-        return None
+    for attempt in range(1, retries + 1):
+        try:
+            print(f"Gemini API isteği atılıyor (Deneme {attempt}/{retries})...")
+            response = client.models.generate_content(
+                model='gemini-3.8-flash',
+                contents=prompt,
+            )
+            # Markdown kod bloklarını temizle
+            clean_text = response.text.replace("```json", "").replace("```", "").strip()
+            return json.loads(clean_text)
+        except Exception as e:
+            print(f"Gemini API hatası (Deneme {attempt}): {e}")
+            if attempt < retries:
+                print(f"{delay} saniye bekleniyor ve tekrar deneniyor...")
+                time.sleep(delay)
+            else:
+                print("Maksimum deneme sayısına ulaşıldı.")
+                return None
 
 def send_telegram_bot():
     token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_TOKEN")
