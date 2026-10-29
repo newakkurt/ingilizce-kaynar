@@ -1,0 +1,4 @@
+google-genai
+gtts
+requests
+python-telegram-bot
