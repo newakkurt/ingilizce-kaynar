@@ -2,10 +2,10 @@ import os
 import json
 import random
 import requests
+import asyncio
 from gtts import gTTS
 from google import genai
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram import Bot
 
 # Kota dolu olduğunda veya API'ye ulaşılamadığında devreye girecek yedek havuz
 BACKUP_VOCABULARY = [
@@ -103,14 +103,23 @@ def generate_image_for_word(word, example):
         print(f"Görsel üretilemedi: {e}")
     return None
 
-async def send_word_content(chat_id, context):
-    """Kelimeyi, ses dosyasını ve görseli oluşturup Telegram'a gönderir"""
-    item = generate_english_content()
-    if not item:
-        await context.bot.send_message(chat_id=chat_id, text="İçerik alınamadı.")
+async def main_async():
+    token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    
+    if not token or not chat_id:
+        print("Hata: Telegram Secret değerleri bulunamadı!")
         return
 
-    # 1. Metin Mesajı
+    bot = Bot(token=token)
+    
+    print("İçerik üretiliyor...")
+    item = generate_english_content()
+    if not item:
+        print("İçerik alınamadı.")
+        return
+
+    # 1. Metin Mesajı Hazırlığı
     message = (
         f"🤖 <b>AI Word of the Moment</b>\n\n"
         f"📌 <b>{item['word']}</b> <i>({item['type']})</i>\n"
@@ -123,55 +132,24 @@ async def send_word_content(chat_id, context):
     image_path = generate_image_for_word(item['word'], item['example'])
     if image_path and os.path.exists(image_path):
         with open(image_path, 'rb') as photo:
-            await context.bot.send_photo(chat_id=chat_id, photo=photo, caption=message, parse_mode="HTML")
+            await bot.send_photo(chat_id=chat_id, photo=photo, caption=message, parse_mode="HTML")
         os.remove(image_path)
     else:
-        await context.bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
+        await bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
 
-    # 3. Sesli Okuma Dosyası (Voice)
+    # 3. Sesli Okuma Dosyası (Voice) Gönderme
     speech_text = f"{item['word']}. {item['example']}"
     audio_file = "voice.mp3"
     tts = gTTS(text=speech_text, lang='en', slow=False)
     tts.save(audio_file)
 
     with open(audio_file, 'rb') as voice:
-        await context.bot.send_voice(chat_id=chat_id, voice=voice)
+        await bot.send_voice(chat_id=chat_id, voice=voice)
 
     if os.path.exists(audio_file):
         os.remove(audio_file)
 
-# Komut Fonksiyonları
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🤖 Bot aktif! İngilizce kelime paylaşımı için /paylas komutunu kullanabilirsin.")
-
-async def yardim_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    help_text = (
-        "📖 <b>Bot Komutları Rehberi:</b>\n\n"
-        "• /paylas - Yapay zeka ile anlık yeni bir İngilizce kelime, özel görsel ve sesli telaffuz gönderir.\n"
-        "• /yardim - Bu yardım menüsünü görüntüler."
-    )
-    await update.message.reply_text(help_text, parse_mode="HTML")
-
-async def paylas_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    await update.message.reply_text("🔍 Yeni kelime ve görsel hazırlanıyor, lütfen bekleyin...")
-    await send_word_content(chat_id, context)
-
-def main():
-    token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_TOKEN")
-    if not token:
-        print("Hata: TELEGRAM_BOT_TOKEN bulunamadı!")
-        return
-
-    application = ApplicationBuilder().token(token).build()
-
-    # Komut yönlendiricileri
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CommandHandler("yardim", yardim_command))
-    application.add_handler(CommandHandler("paylas", paylas_command))
-
-    print("Bot çalışmaya başladı (Polling modunda dinleniyor)...")
-    application.run_polling()
+    print("Otomatik paylaşım başarıyla gönderildi!")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main_async())
