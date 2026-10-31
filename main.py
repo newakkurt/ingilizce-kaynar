@@ -51,6 +51,50 @@ BACKUP_VOCABULARY = [
     }
 ]
 
+# ---------------- Persistent learning history ----------------
+STATE_FILE = "learning_state.json"
+MAX_HISTORY = 180
+
+def load_learning_state():
+    try:
+        with open(STATE_FILE, "r", encoding="utf-8") as handle:
+            state = json.load(handle)
+        if not isinstance(state, dict):
+            raise ValueError("Invalid learning state")
+        state.setdefault("words", {})
+        state.setdefault("recent", [])
+        return state
+    except (FileNotFoundError, json.JSONDecodeError, ValueError):
+        return {"words": {}, "recent": []}
+
+def choose_non_repeating_item(item, state):
+    recent = {str(x).strip().casefold() for x in state.get("recent", [])}
+    word = str(item.get("word", "")).strip()
+    if word and word.casefold() not in recent:
+        return item
+    candidates = [x for x in BACKUP_VOCABULARY
+                  if str(x.get("word", "")).strip().casefold() not in recent]
+    return random.choice(candidates) if candidates else item
+
+def save_learning_state(state, item):
+    word = str(item.get("word", "")).strip()
+    if not word:
+        return
+    key = word.casefold()
+    record = state.setdefault("words", {}).setdefault(
+        key, {"word": word, "times_sent": 0}
+    )
+    record["times_sent"] = int(record.get("times_sent", 0)) + 1
+    from datetime import datetime, timezone
+    record["last_sent_utc"] = datetime.now(timezone.utc).isoformat()
+    recent = [x for x in state.setdefault("recent", [])
+              if str(x).casefold() != key]
+    recent.append(word)
+    state["recent"] = recent[-MAX_HISTORY:]
+    state["total_sent"] = int(state.get("total_sent", 0)) + 1
+    with open(STATE_FILE, "w", encoding="utf-8") as handle:
+        json.dump(state, handle, ensure_ascii=False, indent=2)
+
 def generate_english_content():
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -114,7 +158,8 @@ async def main_async():
     bot = Bot(token=token)
     
     print("İçerik üretiliyor...")
-    item = generate_english_content()
+    learning_state = load_learning_state()
+    item = choose_non_repeating_item(generate_english_content(), learning_state)
     if not item:
         print("İçerik alınamadı.")
         return
@@ -128,14 +173,21 @@ async def main_async():
         f"🇹🇷 <b>TR:</b> {item['tr_meaning']} — {item['tr_example']}"
     )
 
-    # 2. Görsel Üretme ve Gönderme
+    # 2. Görsel gönder; görsel servisi hata verirse metin paylaşımını sürdür.
     image_path = generate_image_for_word(item['word'], item['example'])
+    text_sent = False
     if image_path and os.path.exists(image_path):
-        with open(image_path, 'rb') as photo:
-            await bot.send_photo(chat_id=chat_id, photo=photo, caption=message, parse_mode="HTML")
-        os.remove(image_path)
-    else:
+        try:
+            with open(image_path, 'rb') as photo:
+                await bot.send_photo(chat_id=chat_id, photo=photo, caption=message, parse_mode="HTML")
+            text_sent = True
+        except Exception as e:
+            print(f"Görselli mesaj gönderilemedi, metin deneniyor: {e}")
+    if not text_sent:
         await bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
+    if image_path and os.path.exists(image_path):
+        os.remove(image_path)
+    save_learning_state(learning_state, item)
 
     # 3. Sesli Okuma Dosyası (Voice) Gönderme
     speech_text = f"{item['word']}. {item['example']}"
