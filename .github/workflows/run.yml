@@ -1,12 +1,14 @@
 name: Telegram Bot Runner
 
 on:
-  push:
-    branches: [ "main", "master" ]
   schedule:
     # Türkiye saatiyle 09:00, 13:00, 17:00, 21:00
     - cron: '0 6,10,14,18 * * *'
   workflow_dispatch:
+
+concurrency:
+  group: english-learning-bot
+  cancel-in-progress: false
 
 jobs:
   run-bot:
@@ -15,6 +17,14 @@ jobs:
     steps:
     - name: Depoyu Klonla
       uses: actions/checkout@v4
+
+    - name: Öğrenme geçmişini geri yükle
+      uses: actions/cache@v4
+      with:
+        path: learning_state.json
+        key: english-learning-state-${{ github.run_id }}
+        restore-keys: |
+          english-learning-state-
 
     - name: Python Ortamını Kur
       uses: actions/setup-python@v5
