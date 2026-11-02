@@ -104,7 +104,7 @@ def save_learning_state(state, item):
         json.dump(state, handle, ensure_ascii=False, indent=2)
 
 
-def send_due_review_quiz(bot, chat_id, state):
+async def send_due_review_quiz(bot, chat_id, state):
     """Send at most one due spaced-repetition quiz per run; no extra API or service."""
     from datetime import datetime, timezone, timedelta
     now = datetime.now(timezone.utc)
