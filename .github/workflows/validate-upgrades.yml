@@ -1,5 +1,11 @@
 name: Validate safe upgrades
 on:
+  push:
+    branches: [main]
+    paths:
+      - "main.py"
+      - "requirements.txt"
+      - ".github/workflows/validate-upgrades.yml"
   pull_request:
   workflow_dispatch:
 jobs:
