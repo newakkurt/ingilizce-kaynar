@@ -85,8 +85,16 @@ def save_learning_state(state, item):
         key, {"word": word, "times_sent": 0}
     )
     record["times_sent"] = int(record.get("times_sent", 0)) + 1
-    from datetime import datetime, timezone
-    record["last_sent_utc"] = datetime.now(timezone.utc).isoformat()
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    record["last_sent_utc"] = now.isoformat()
+    for field in ("type", "definition", "example", "tr_meaning", "tr_example"):
+        if item.get(field):
+            record[field] = str(item[field])
+    # Sabit aralıklı tekrar: ilk tekrar 1 gün sonra, sonraki tekrarlar 3/7/14 gün.
+    record.setdefault("review_step", 0)
+    record.setdefault("review_interval_days", 1)
+    record["next_review_utc"] = (now + timedelta(days=1)).isoformat()
     recent = [x for x in state.setdefault("recent", [])
               if str(x).casefold() != key]
     recent.append(word)
@@ -94,6 +102,63 @@ def save_learning_state(state, item):
     state["total_sent"] = int(state.get("total_sent", 0)) + 1
     with open(STATE_FILE, "w", encoding="utf-8") as handle:
         json.dump(state, handle, ensure_ascii=False, indent=2)
+
+
+def send_due_review_quiz(bot, chat_id, state):
+    """Send at most one due spaced-repetition quiz per run; no extra API or service."""
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    due = []
+    for key, record in state.get("words", {}).items():
+        if not record.get("next_review_utc") or not record.get("tr_meaning"):
+            continue
+        try:
+            due_at = datetime.fromisoformat(record["next_review_utc"])
+            if due_at <= now:
+                due.append((due_at, key, record))
+        except (TypeError, ValueError):
+            continue
+    if not due:
+        return
+    _, key, record = sorted(due, key=lambda row: row[0])[0]
+    correct = str(record["tr_meaning"]).strip()
+    distractors = []
+    for other_key, other in state.get("words", {}).items():
+        meaning = str(other.get("tr_meaning", "")).strip()
+        if other_key != key and meaning and meaning.casefold() != correct.casefold():
+            if meaning not in distractors:
+                distractors.append(meaning)
+    for item in BACKUP_VOCABULARY:
+        meaning = str(item.get("tr_meaning", "")).strip()
+        if meaning and meaning.casefold() != correct.casefold() and meaning not in distractors:
+            distractors.append(meaning)
+    options = [correct] + distractors[:3]
+    if len(options) < 2:
+        return
+    random.shuffle(options)
+    correct_index = options.index(correct)
+    try:
+        awaitable = bot.send_poll(
+            chat_id=chat_id,
+            question=f"Tekrar zamanı: “{record['word']}” ne demek?",
+            options=options,
+            type="quiz",
+            correct_option_id=correct_index,
+            explanation=str(record.get("example", ""))[:200],
+            is_anonymous=False,
+        )
+        await awaitable
+        step = min(int(record.get("review_step", 0)) + 1, 3)
+        intervals = [1, 3, 7, 14]
+        record["review_step"] = step
+        record["review_interval_days"] = intervals[step]
+        record["last_review_quiz_utc"] = now.isoformat()
+        record["next_review_utc"] = (now + timedelta(days=intervals[step])).isoformat()
+        with open(STATE_FILE, "w", encoding="utf-8") as handle:
+            json.dump(state, handle, ensure_ascii=False, indent=2)
+        print(f"Spaced repetition quiz sent: {record['word']}")
+    except Exception as exc:
+        print(f"Tekrar testi gönderilemedi; sonraki çalışmada yeniden denenecek: {exc}")
 
 def generate_english_content():
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -200,6 +265,11 @@ async def main_async():
 
     if os.path.exists(audio_file):
         os.remove(audio_file)
+
+    try:
+        await send_due_review_quiz(bot, chat_id, learning_state)
+    except Exception as e:
+        print(f"Tekrar testi atlandı: {e}")
 
     print("Otomatik paylaşım başarıyla gönderildi!")
 
